@@ -14,6 +14,8 @@ using Bunit;
 using Bunit.Rendering;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
+using Microsoft.Extensions.DependencyInjection;
+using Moq;
 using MudBlazor.Extensions;
 using MudBlazor.Interfaces;
 using MudBlazor.UnitTests.TestComponents.DataGrid;
@@ -1291,6 +1293,24 @@ namespace MudBlazor.UnitTests.Components
             // navigate back to the first page programmatically
             await comp.InvokeAsync(() => dataGrid.Instance.NavigateTo(Page.First));
             dataGrid.Instance.CurrentPage.Should().Be(0);
+        }
+
+        /// <summary>
+        /// Changing pages scrolls the grid back to the top only when ScrollToTopOnPageChange is on (#11212).
+        /// </summary>
+        [TestCase(true, 1)]
+        [TestCase(false, 0)]
+        public async Task DataGridScrollToTopOnPageChange(bool scrollToTop, int expectedCalls)
+        {
+            var scrollManager = new Mock<IScrollManager>();
+            Context.Services.AddSingleton(scrollManager.Object);
+            var comp = Context.Render<DataGridScrollToTopTest>(parameters => parameters
+                .Add(p => p.ScrollToTop, scrollToTop));
+            var gridId = comp.Find(".mud-table-container").Id;
+
+            await comp.FindAll(".mud-table-pagination-actions button")[2].ClickAsync();
+
+            scrollManager.Verify(x => x.ScrollToTopAsync($"#{gridId}", It.IsAny<ScrollBehavior>()), Times.Exactly(expectedCalls));
         }
 
         [Test]

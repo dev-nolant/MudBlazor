@@ -35,6 +35,8 @@ namespace MudBlazor
         internal bool _groupInitialExpanded = true;
         internal MudVirtualize<IndexBag<T>>? _mudVirtualize;
         private bool _isFirstRendered = false;
+        private bool _scrollToTopPending;
+        private readonly string _gridId = Identifier.Create();
         private bool _filtersMenuVisible = false;
         private bool _columnsPanelVisible = false;
         internal HashSet<T> _openHierarchies;
@@ -1333,6 +1335,19 @@ namespace MudBlazor
         public EventCallback<int> RowsPerPageChanged { get; set; }
 
         /// <summary>
+        /// Scrolls the grid back to the top when <see cref="CurrentPage"/> changes.
+        /// </summary>
+        /// <remarks>
+        /// Defaults to <c>false</c>.
+        /// </remarks>
+        [Parameter]
+        [Category(CategoryTypes.DataGrid.Pagination)]
+        public bool ScrollToTopOnPageChange { get; set; }
+
+        [Inject]
+        private IScrollManager ScrollManager { get; set; } = null!;
+
+        /// <summary>
         /// The current page being displayed.
         /// </summary>
         /// <remarks>
@@ -1347,6 +1362,7 @@ namespace MudBlazor
                 if (_currentPage == value)
                     return;
                 _currentPage = value;
+                _scrollToTopPending = ScrollToTopOnPageChange;
                 InvokeAsync(StateHasChanged);
                 CurrentPageChanged.InvokeAsync(_currentPage);
 
@@ -1691,6 +1707,12 @@ namespace MudBlazor
             else
             {
                 PagerStateHasChangedEvent?.Invoke();
+            }
+
+            if (_scrollToTopPending)
+            {
+                _scrollToTopPending = false;
+                await ScrollManager.ScrollToTopAsync($"#{_gridId}");
             }
 
             await base.OnAfterRenderAsync(firstRender);
